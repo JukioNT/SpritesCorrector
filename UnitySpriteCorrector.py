@@ -12,10 +12,14 @@ questions = [
             ),
 ]
 
+#Getting the sprite size
+
+sprite_size = int(input("What is the sprite size?(If it is 16x16, then type 16)\n>"))
+print(f"Selected({sprite_size}x{sprite_size})")
+
 answers = inquirer.prompt(questions)
 if answers['answer'] == 'No':
     #Selecting the file
-
     directory = '.'
     file_type = '*.ppm'
 
@@ -36,11 +40,6 @@ if answers['answer'] == 'No':
 
     print(f'Width: {width} \nHeight: {height}')
 
-    #Getting the sprite size
-
-    sprite_size = int(input("What is the sprite size?(If it is 16x16, then type 16)\n>"))
-    print(f"Selected({sprite_size}x{sprite_size})")
-
     #Choosing when start the cutting
 
     lines_count = width*height*3
@@ -52,15 +51,17 @@ if answers['answer'] == 'No':
 
     start_line = image_lines - lines_count + 1
 
+    sprite = 0
+
     print(f'Start on line {start_line}')
 
     #Cutting the images
 
     content = f'''P3
-    # Created by JukioNT's UnitySpriteCorrector v1.0.0 https://github.com/JukioNT
-    {sprite_size} {sprite_size}
-    255
-    '''
+# Created by JukioNT's UnitySpriteCorrector v1.0.0 https://github.com/JukioNT
+{sprite_size} {sprite_size}
+255
+'''
 
     sprite_pixels = sprite_size * sprite_size
     sprites_count = int((width * height) / (sprite_pixels))
@@ -97,15 +98,132 @@ if answers['answer'] == 'No':
             counter = 0
             start_line = (image_lines - lines_count + 1) + row_jump * row_mul
             row_mul += 1
+
+        sprite = z
         
     bar.finish()
 
-with open('2.ppm', 'r') as file:
-    lines = file.readlines()
-
-lines[2] = '18 18\n'
-
-with open('2.ppm', 'w') as file:
-    lines = file.writelines(lines)
 
 
+#Resizing the images
+
+
+corrected_sprite_size = sprite_size + 2
+print('a')
+
+#Create the corrected images
+content = f'''P3
+# Created by JukioNT's UnitySpriteCorrector v1.0.0 https://github.com/JukioNT
+{corrected_sprite_size} {corrected_sprite_size}
+255
+'''
+
+if answers['answer'] == 'Yes':
+    maior_numero = None
+    for arquivo in os.listdir('./'):
+        if arquivo.endswith('.ppm') and arquivo[:-4].isdigit():
+            numero_arquivo = int(arquivo.split('.')[0])
+            if maior_numero is None or numero_arquivo > maior_numero:
+                maior_numero = numero_arquivo
+    z = maior_numero+1
+
+
+bar = IncrementalBar('Resizing...', max=z)
+
+for y in range(z):
+    os.system('cls' if os.name == 'nt' else 'clear')
+    print('Resizing')
+    print(f'{y+1}/{z}({round((y+1)*100/z, 2)}%)')
+    bar.next()
+
+    #Read the cutted images
+    with open(f'{y}.ppm', 'r') as image:
+        lines = image.readlines()
+
+
+    with open(f'{y}C.ppm', 'w') as corrected:
+        corrected.write(content)
+
+    corrected_sprite_pixels = corrected_sprite_size * corrected_sprite_size
+    row_lines = sprite_size * 3
+    start_line = 4
+    corners = []
+    first_line = 5+3*sprite_size
+    for i in range(corrected_sprite_size):
+        corners.append(sprite_size*i*3+5)
+        corners.append(sprite_size*i*3+2)
+    first = True
+
+    with open(f'{y}C.ppm', 'a') as pixel:
+        while start_line < sprite_size*sprite_size*3+3:
+
+            if(start_line == first_line-1 and first):
+                start_line = 4
+                first = False
+
+            for i in range(3):
+                pixel.write(lines[start_line+i])
+            
+            if start_line+1 in corners:
+                for i in range(3):
+                    pixel.write(lines[start_line+i])
+            
+            start_line += 3
+
+        start_line = (sprite_size * sprite_size - sprite_size) * 3 + 5
+        first = True
+
+        for i in range(sprite_size):
+            for i in range(3):
+                pixel.write(lines[start_line-1+i])
+            
+            if first:
+                first = False
+                for i in range(3):
+                    pixel.write(lines[start_line-1+i])
+
+            start_line += 3
+        
+        start_line -= 3
+        for i in range(3):
+            pixel.write(lines[start_line-1+i])
+
+bar.finish()
+
+
+#Merging the resized sprites
+
+
+os.system('cls' if os.name == 'nt' else 'clear')
+content = f'''P3
+# Created by JukioNT's UnitySpriteCorrector v1.0.0 https://github.com/JukioNT
+{corrected_sprite_size} {corrected_sprite_size*z}
+255
+'''
+
+with open(f'00hzwGXppHe.ppm', 'w') as file:
+    file.write(content)
+
+bar = IncrementalBar('Merging...', max=z)
+
+with open(f'00hzwGXppHe.ppm', 'a') as file:
+    for i in range(z):
+        os.system('cls' if os.name == 'nt' else 'clear')
+        print('Merging')
+        print(f'{i+1}/{z}({round((i+1)*100/z, 2)}%)')
+        bar.next()
+
+        with open(f'{i}C.ppm', 'r') as image:
+            lines = image.readlines()
+
+        x = 4
+        while True:
+            try:
+                file.write(lines[x])
+                x+=1
+            except:
+                os.remove(f'./{i}.ppm')
+                os.remove(f'./{i}C.ppm')
+                break
+
+bar.finish()
